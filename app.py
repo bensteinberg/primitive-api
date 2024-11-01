@@ -16,10 +16,6 @@ def allowed_file(name):
     return '.' in name and Path(name).suffix[1:].lower() in ALLOWED
 
 
-def clamp(n, minimum, maximum):
-    return max(min(maximum, int(n)), minimum)
-
-
 @app.route('/', methods=['POST'])
 def transform():
     if 'file' not in request.files:
@@ -35,12 +31,22 @@ def transform():
 
     _, output_path = mkstemp(suffix='.jpg')
 
-    # number of primitives: max of 2048 is arbitrary
-    n = clamp(request.form['n'], 2048, 1) if 'n' in request.form else 128
+    # number of primitives
+    try:
+        n = int(request.form.get('n', '128'))
+    except ValueError:
+        return jsonify(error='n must be an integer')
+    if n < 1:
+        return jsonify(error='n must be positive')
 
     # shape: 0=combo 1=triangle 2=rect 3=ellipse 4=circle 5=rotatedrect
     # 6=beziers 7=rotatedellipse 8=polygon
-    m = clamp(request.form['m'], 8, 0) if 'm' in request.form else 1
+    try:
+        m = int(request.form.get('m', '1'))
+    except ValueError:
+        return jsonify(error='m must be an integer')
+    if not m in range(9):
+        return jsonify(error='Shape (m) must be between 0 and 8')
 
     cmd = f'primitive -i {input_path} -o {output_path} -n {n} -m {m}'
     run(cmd.split(' '))
